@@ -1,6 +1,7 @@
 package com.example.kibo;
 
 import com.example.model.Context;
+import com.example.model.ProductAttributeData;
 import com.mozu.api.ApiContext;
 import com.mozu.api.DataViewMode;
 import com.mozu.api.Headers;
@@ -76,6 +77,7 @@ public class KiboResourceManagerImpl implements KiboResourceManager {
     Map<Context, ProductTypeExtraResource> productTypeExtraResourceCache = new HashMap<>();
     Map<Context, ProductVariationResource> productVariationResourceCache = new HashMap<>();
     Map<Context, LocationGroupResource> locationGroupResourceCache = new HashMap<>();
+    Map<String, ProductAttributeData> productTypeAttrMasterCache = new HashMap<>();
     Map<Context, Map<String, List<String>>> attrMasterCache = new HashMap<>();
     Map<Context, Map<String, ProductType>> productTypeMasterCache = new HashMap<>();
     Map<Context, Map<String, Integer>> categoriesMasterCache = new HashMap<>();
@@ -222,4 +224,125 @@ public class KiboResourceManagerImpl implements KiboResourceManager {
         return cachedResource;
     }
 
+    @Override
+    public Map<String, ProductType> getProductTypesForContext(Context context) throws InitializationException {
+        if(productTypeMasterCache.get(context) != null && productTypeMasterCache.get(context).size() > 0) {
+            return productTypeMasterCache.get(context);
+        }
+
+        Map<String, ProductType> productTypeMap = new HashMap<>();
+        ProductTypeResource resource = getProductTypeResource(context);
+
+        ProductTypeCollection productTypes = null;
+        try {
+            do {
+                int start = 0;
+                productTypes = resource.getProductTypes(start, 200, null, null, null);
+                start += productTypes.getPageSize();
+                if(productTypes != null && productTypes.getItems() != null && productTypes.getItems().size() > 0) {
+                    for(ProductType productType: productTypes.getItems()) {
+                        productTypeMap.put(productType.getName(), productType);
+                        prepareProductTypeAttrMap(productType, context);
+                    }
+                }
+            }
+            while(productTypes.getStartIndex() + productTypes.getPageSize() < productTypes.getTotalCount());
+        }
+        catch(Exception ex) {
+        }
+
+        synchronized (productTypeMasterCache) {
+            productTypeMasterCache.put(context, productTypeMap);
+        }
+        return productTypeMap;
+    }
+
+    public ProductTypeResource getProductTypeResource(Context context) throws InitializationException {
+        ProductTypeResource productTypeResource = null;
+        Context cachedContext = getCachedOrCreateContext(context.getTenantId(), context.getSiteId());
+        productTypeResource = getProductTypeResourceCreateIfAbsent(cachedContext);
+        return productTypeResource;
+    }
+
+    private ProductTypeResource getProductTypeResourceCreateIfAbsent(final Context context)
+            throws InitializationException {
+        ProductTypeResource cachedResource = null;
+        if ((cachedResource = productTypeResourceCache.get(context)) == null) {
+            synchronized (productTypeResourceCache) {
+                if ((cachedResource = productTypeResourceCache.get(context)) == null) {
+                    ApiContext apiContext = getKiboApiContext(context);
+                    cachedResource = new ProductTypeResource(apiContext);
+                    productTypeResourceCache.put(context, cachedResource);
+                }
+            }
+        }
+        return cachedResource;
+    }
+
+
+    private void prepareProductTypeAttrMap(ProductType productType, Context context) {
+        ProductAttributeData mapValue = null;
+        synchronized (productTypeAttrMasterCache) {
+            for(AttributeInProductType attr : productType.getProperties()) {
+                mapValue = new ProductAttributeData();
+                String key = productType.getId() + "#";
+                mapValue.setProperty(true);
+                mapValue.setAttributeFQN(attr.getAttributeFQN());
+                mapValue.setAttribute(attr);
+                populateProductAttributeData(mapValue, attr);
+                productTypeAttrMasterCache.put(key.concat(attr.getAttributeDetail().getAttributeCode()), mapValue);
+            }
+            for(AttributeInProductType attr : productType.getOptions()) {
+                mapValue = new ProductAttributeData();
+                String key = productType.getId() + "#";
+                mapValue.setOption(true);
+                mapValue.setAttributeFQN(attr.getAttributeFQN());
+                mapValue.setAttribute(attr);
+                populateProductAttributeData(mapValue, attr);
+                productTypeAttrMasterCache.put(key.concat(attr.getAttributeDetail().getAttributeCode()), mapValue);
+            }
+            for(AttributeInProductType attr : productType.getExtras()) {
+                mapValue = new ProductAttributeData();
+                String key = productType.getId() + "#";
+                mapValue.setExtra(true);
+                mapValue.setAttributeFQN(attr.getAttributeFQN());
+                mapValue.setAttribute(attr);
+                populateProductAttributeData(mapValue, attr);
+                productTypeAttrMasterCache.put(key.concat(attr.getAttributeDetail().getAttributeCode()), mapValue);
+            }
+            for(AttributeInProductType attr : productType.getVariantProperties()) {
+                mapValue = new ProductAttributeData();
+                String key = productType.getId() + "#";
+                mapValue.setVariantProperty(true);
+                mapValue.setAttributeFQN(attr.getAttributeFQN());
+                mapValue.setAttribute(attr);
+                populateProductAttributeData(mapValue, attr);
+                productTypeAttrMasterCache.put(key.concat(attr.getAttributeDetail().getAttributeCode()), mapValue);
+            }
+        }
+    }
+
+    private void populateProductAttributeData(ProductAttributeData mapValue, AttributeInProductType attr) {
+        if("YesNo".equalsIgnoreCase(attr.getAttributeDetail().getInputType())) {
+            mapValue.setBooleanType(true);
+        }
+        else if("List".equalsIgnoreCase(attr.getAttributeDetail().getInputType())) {
+            mapValue.setListType(true);
+            populateListValues(mapValue, attr);
+        }
+        else if(attr.getAttributeDetail().getInputType().toLowerCase().contains("text")) {
+            mapValue.setTextType(true);
+        }
+    }
+
+    private void populateListValues(ProductAttributeData mapValue, AttributeInProductType attr) {
+        List<AttributeVocabularyValueInProductType> vocabularyValues = attr.getVocabularyValues();
+        List<String> valuelist = new ArrayList<>();
+        if(vocabularyValues != null && vocabularyValues.size() > 0) {
+            for(AttributeVocabularyValueInProductType values: vocabularyValues) {
+                valuelist.add(String.valueOf(values.getValue()).toLowerCase());
+            }
+        }
+        mapValue.setListValidValues(valuelist);
+    }
 }

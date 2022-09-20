@@ -1,5 +1,7 @@
 /home/satyam/Downloads/HelloAzure/src/main/java/com/example/HelloAzureApplication.java
 /home/satyam/Downloads/HelloAzure/src/main/java/com/example/kibo/KiboResourceManager.java
+/home/satyam/Downloads/HelloAzure/src/main/java/com/example/model/SubProductModel.java
+/home/satyam/Downloads/HelloAzure/src/main/java/com/example/model/ProductAttributeData.java
 /home/satyam/Downloads/HelloAzure/src/main/java/com/example/kibo/KiboApiContextExpireListener.java
 /home/satyam/Downloads/HelloAzure/src/main/java/com/example/HelloHandler.java
 /home/satyam/Downloads/HelloAzure/src/main/java/com/example/model/Context.java

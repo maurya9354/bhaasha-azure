@@ -5,6 +5,7 @@
     "type" : "httpTrigger",
     "direction" : "in",
     "name" : "request",
+    "route" : "add-product",
     "methods" : [ "GET", "POST" ],
     "authLevel" : "ANONYMOUS"
   }, {

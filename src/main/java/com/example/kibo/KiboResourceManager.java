@@ -33,5 +33,5 @@ public interface KiboResourceManager {
 
     public ProductResource getProductResource(Context context) throws InitializationException;
 
-	
+    public Map<String, ProductType> getProductTypesForContext(Context context) throws InitializationException;
 }
